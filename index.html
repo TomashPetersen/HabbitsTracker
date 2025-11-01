@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MonthHabit - Трекер привычек</title>
+    <title>Трекер привычек</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- React Libraries -->
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
@@ -14,14 +14,14 @@
       body {
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        background-color: #0f172a; /* bg-slate-900 */
-        color: #e2e8f0; /* text-slate-200 */
+        background-color: #111827; /* bg-gray-900 */
+        color: #e5e7eb; /* text-gray-200 */
       }
       .loader {
         text-align: center;
         padding: 4rem;
         font-size: 1.5rem;
-        color: #94a3b8; /* text-slate-400 */
+        color: #9ca3af; /* text-gray-400 */
       }
     </style>
 </head>
@@ -65,32 +65,29 @@ const getFirstDayOfMonth = (year, month) => {
 };
 
 // --- From utils/stats.ts ---
-const calculateStreaks = (habit, totalDays, isPastMonth) => {
-  let maxStreak = 0;
-  let dayStreak = 0;
-  const today = new Date();
-  const limit = isPastMonth ? totalDays : today.getDate();
+const calculateStreaks = (habit, totalDays) => {
+    let maxStreak = 0;
+    let currentStreak = 0;
 
-  for (let i = 1; i <= totalDays; i++) {
-    if (habit.days[i]) {
-      dayStreak++;
-    } else {
-      if (dayStreak > maxStreak) maxStreak = dayStreak;
-      dayStreak = 0;
+    for (let day = 1; day <= totalDays; day++) {
+        if (habit.days[day]) {
+            currentStreak++;
+        } else {
+            if (currentStreak > maxStreak) {
+                maxStreak = currentStreak;
+            }
+            currentStreak = 0;
+        }
     }
-  }
-  if (dayStreak > maxStreak) maxStreak = dayStreak;
-  
-  let currentStreak = 0;
-  for (let i = limit; i >= 1; i--) {
-      if (habit.days[i]) {
-          currentStreak++;
-      } else {
-          break;
-      }
-  }
-  return { maxStreak, currentStreak };
+
+    // Final check for a streak that goes to the end of the month
+    if (currentStreak > maxStreak) {
+        maxStreak = currentStreak;
+    }
+
+    return { maxStreak };
 };
+
 const calculateCompletion = (habit, totalDays) => {
     const completedDays = Object.values(habit.days).filter(Boolean).length;
     if (totalDays === 0) return { percentage: 0, count: 0 };
@@ -215,6 +212,15 @@ const AppProvider = ({ children }) => {
         if (habit) habit.days[day] = !habit.days[day];
         return newState;
       }
+      case 'RESET_HABIT_PROGRESS': {
+        const { year, month, habitId } = action.payload;
+        const monthKey = `${year}-${month}`;
+        const habit = newState.years[year]?.[monthKey]?.habits.find(h => h.id === habitId);
+        if (habit) {
+          habit.days = {};
+        }
+        return newState;
+      }
       case 'CLEAR_HISTORY': return initialState;
       default: return state;
     }
@@ -244,11 +250,11 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+      <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
         <h2 className="text-xl font-bold text-white">{title}</h2>
-        <p className="mt-2 text-slate-400">{message}</p>
+        <p className="mt-2 text-gray-400">{message}</p>
         <div className="mt-6 flex justify-end gap-4">
-          <button onClick={onClose} className="px-4 py-2 rounded-md text-sm font-medium bg-slate-600 hover:bg-slate-500 transition-colors">Отмена</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-md text-sm font-medium bg-gray-600 hover:bg-gray-500 transition-colors">Отмена</button>
           <button onClick={onConfirm} className="px-4 py-2 rounded-md text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors">Подтвердить</button>
         </div>
       </div>
@@ -257,27 +263,23 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }) => {
 };
 
 // --- From components/Statistics.tsx ---
-const Statistics = ({ habit, daysInMonth, isReadOnly }) => {
+const Statistics = ({ habit, daysInMonth }) => {
   const { completion, streaks } = useMemo(() => ({
     completion: calculateCompletion(habit, daysInMonth),
-    streaks: calculateStreaks(habit, daysInMonth, isReadOnly),
-  }), [habit, daysInMonth, isReadOnly]);
+    streaks: calculateStreaks(habit, daysInMonth),
+  }), [habit, daysInMonth]);
+
   return (
-    <div className="flex flex-col text-center text-sm font-mono text-slate-400">
+    <div className="flex flex-col text-center text-sm font-mono text-gray-400">
       <div title="Процент выполнения / выполнено дней">{completion.percentage}% ({completion.count})</div>
-      <div className="flex gap-2 justify-center mt-1">
-        <div title="Текущий стрик" className="flex items-center gap-1">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.934l-6.794 12.42a1 1 0 00.385 1.451l.007.003a1 1 0 001.45-.385c.345-.23.614-.558.822-.934l6.794-12.42a1 1 0 00-.385-1.451z" clipRule="evenodd" /></svg>
-          {streaks.currentStreak}
-        </div>
-        <div title="Максимальный стрик" className="flex items-center gap-1">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-sky-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" /></svg>
+      <div title="Рекорд привычек подряд!" className="flex items-center justify-center gap-1 mt-1">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-violet-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" clipRule="evenodd" /></svg>
           {streaks.maxStreak}
-        </div>
       </div>
     </div>
   );
 };
+
 
 // --- From components/HabitRow.tsx ---
 const HabitRow = ({ habit, year, month, daysInMonth, isReadOnly }) => {
@@ -285,6 +287,7 @@ const HabitRow = ({ habit, year, month, daysInMonth, isReadOnly }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(habit.title);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const debouncedTitle = useDebounce(title, 500);
 
   useEffect(() => {
@@ -292,6 +295,10 @@ const HabitRow = ({ habit, year, month, daysInMonth, isReadOnly }) => {
       context?.dispatch({ type: 'UPDATE_HABIT_TITLE', payload: { year, month, habitId: habit.id, newTitle: debouncedTitle } });
     }
   }, [debouncedTitle, habit.title, context, year, month, habit.id]);
+  
+  useEffect(() => {
+    setTitle(habit.title);
+  }, [habit.title]);
 
   if (!context) return null;
   const { dispatch } = context;
@@ -303,6 +310,10 @@ const HabitRow = ({ habit, year, month, daysInMonth, isReadOnly }) => {
     dispatch({ type: 'DELETE_HABIT', payload: { year, month, habitId: habit.id } });
     setIsDeleteModalOpen(false);
   };
+  const handleResetProgress = () => {
+    dispatch({ type: 'RESET_HABIT_PROGRESS', payload: { year, month, habitId: habit.id } });
+    setIsResetModalOpen(false);
+  };
   const handleTitleBlur = () => {
     setIsEditing(false);
     if (title.trim() === '') setTitle(habit.title);
@@ -313,35 +324,67 @@ const HabitRow = ({ habit, year, month, daysInMonth, isReadOnly }) => {
 
   return (
     <Fragment>
-      <div className="sticky left-0 bg-slate-800 z-10 flex items-center gap-2 p-2 border-t border-slate-700">
-        <div className="w-2 h-full rounded-full" style={{ backgroundColor: habit.color }}></div>
-        {isEditing ? (
-          <input
-            type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-            onBlur={handleTitleBlur} onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
-            className="w-full bg-slate-700 text-white p-1 rounded-md" autoFocus
-          />
-        ) : (
-          <span onDoubleClick={() => !isReadOnly && setIsEditing(true)} className="flex-grow cursor-pointer">{habit.title}</span>
-        )}
-        <button onClick={() => setIsDeleteModalOpen(true)} disabled={isReadOnly} className="ml-auto text-slate-500 hover:text-red-500 disabled:opacity-30 disabled:hover:text-slate-500 p-1">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+      <div className="sticky left-0 bg-gray-800 z-10 flex items-center gap-2 p-2 border-t border-gray-700">
+         <button 
+            onClick={() => setIsResetModalOpen(true)} 
+            disabled={isReadOnly} 
+            className="flex-shrink-0 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed text-sm px-2 py-1 rounded hover:bg-gray-700 transition-colors"
+            title="Сбросить прогресс за месяц">
+            Сбросить
+        </button>
+        <div className="w-1 h-full flex-shrink-0 rounded-full" style={{ backgroundColor: habit.color }}></div>
+         <div className="flex-grow min-w-0">
+            {isEditing ? (
+              <input
+                type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+                onBlur={handleTitleBlur} onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                className="w-full bg-gray-700 text-white p-1 rounded-md" autoFocus
+              />
+            ) : (
+              <span onDoubleClick={() => !isReadOnly && setIsEditing(true)} className="break-words cursor-pointer">{habit.title}</span>
+            )}
+        </div>
+        <button onClick={() => setIsDeleteModalOpen(true)} disabled={isReadOnly} className="ml-auto flex-shrink-0 text-gray-500 hover:text-red-500 disabled:opacity-30 disabled:hover:text-gray-500 p-2 rounded-full hover:bg-gray-700 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
         </button>
       </div>
-      {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
-        <div key={day} className={`flex items-center justify-center p-1 border-t border-slate-700 ${isCurrentMonth && day === today.getDate() ? 'bg-slate-700/50' : ''}`}>
-          <input type="checkbox" checked={!!habit.days[day]} onChange={() => handleToggleDay(day)} disabled={isReadOnly}
-            className={`w-5 h-5 rounded-sm appearance-none border-2 border-slate-600 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 checked:border-transparent`}
-            style={habit.days[day] ? { backgroundColor: habit.color } : {}}
-          />
-        </div>
-      ))}
-      <div className="flex items-center justify-center p-2 border-t border-slate-700">
-        <Statistics habit={habit} daysInMonth={daysInMonth} isReadOnly={isReadOnly} />
+      {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+        const isChecked = !!habit.days[day];
+        const isPrevChecked = day > 1 && !!habit.days[day - 1];
+        const isNextChecked = day < daysInMonth && !!habit.days[day + 1];
+
+        const streakCellClasses = isChecked && (isPrevChecked || isNextChecked) ? 'py-1 px-0' : 'p-1';
+        
+        let streakCheckboxClasses = 'rounded-sm';
+        if (isChecked) {
+            if (isPrevChecked && isNextChecked) {
+                streakCheckboxClasses = 'rounded-none';
+            } else if (isPrevChecked) {
+                streakCheckboxClasses = 'rounded-r-sm rounded-l-none';
+            } else if (isNextChecked) {
+                streakCheckboxClasses = 'rounded-l-sm rounded-r-none';
+            }
+        }
+        
+        return (
+            <div key={day} className={`flex items-center justify-center border-t border-gray-700 ${isCurrentMonth && day === today.getDate() ? 'bg-gray-700/50' : ''} ${streakCellClasses}`}>
+              <input type="checkbox" checked={isChecked} onChange={() => handleToggleDay(day)} disabled={isReadOnly}
+                className={`w-full h-full appearance-none border-2 border-gray-600 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 checked:border-transparent ${streakCheckboxClasses}`}
+                style={isChecked ? { backgroundColor: habit.color } : {}}
+              />
+            </div>
+        );
+      })}
+      <div className="flex items-center justify-center p-2 border-t border-gray-700">
+        <Statistics habit={habit} daysInMonth={daysInMonth} />
       </div>
       <ConfirmationModal
         isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDelete}
         title="Удалить привычку?" message={`Вы уверены, что хотите удалить привычку "${habit.title}"? Это действие необратимо.`}
+      />
+      <ConfirmationModal
+        isOpen={isResetModalOpen} onClose={() => setIsResetModalOpen(false)} onConfirm={handleResetProgress}
+        title="Сбросить прогресс?" message={`Вы уверены, что хотите сбросить все отметки для привычки "${habit.title}" в этом месяце?`}
       />
     </Fragment>
   );
@@ -362,36 +405,35 @@ const MonthView = () => {
   const today = new Date();
   const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
   
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const selectedDate = new Date(year, month);
-  const isReadOnly = selectedDate < now && !(selectedDate.getFullYear() === now.getFullYear() && selectedDate.getMonth() === now.getMonth());
+  const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const firstDayOfSelectedMonth = new Date(year, month, 1);
+  const isReadOnly = firstDayOfSelectedMonth < firstDayOfCurrentMonth;
 
   return (
     <div className="overflow-x-auto">
       {isReadOnly && (
-        <div className="text-center p-2 mb-4 bg-yellow-900/50 text-yellow-300 rounded-md border border-yellow-700">
+        <div className="text-center p-2 mb-4 bg-violet-900/50 text-violet-300 rounded-md border border-violet-700">
           Это прошлый месяц (только просмотр).
         </div>
       )}
       {habits.length > 0 ? (
-        <div className="grid gap-x-1" style={{ gridTemplateColumns: `minmax(150px, 1.5fr) repeat(${daysInMonth}, minmax(36px, 1fr)) minmax(120px, 1fr)`}}>
-          <div className="sticky left-0 bg-slate-800 z-10 font-semibold text-slate-400 text-sm text-left p-2">Привычка</div>
+        <div className="grid gap-x-1" style={{ gridTemplateColumns: `minmax(350px, 3fr) repeat(${daysInMonth}, minmax(36px, 1fr)) minmax(100px, auto)`}}>
+          <div className="sticky left-0 bg-gray-800 z-10 font-semibold text-gray-400 text-sm text-left p-2">Привычка</div>
           {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
-            <div key={day} className={`text-center font-mono text-sm p-2 rounded-md ${isCurrentMonth && day === today.getDate() ? 'bg-sky-700 text-white' : 'text-slate-400'}`}>
+            <div key={day} className={`text-center font-mono text-sm p-2 rounded-md ${isCurrentMonth && day === today.getDate() ? 'bg-violet-700 text-white' : 'text-gray-400'}`}>
                 <span className="hidden sm:inline">{DAY_NAMES_SHORT[(firstDayOfMonth + day - 1) % 7]}</span>
                 <span className="sm:hidden">{day}</span>
                 <span className="hidden sm:block">{day}</span>
             </div>
           ))}
-          <div className="font-semibold text-slate-400 text-sm text-center p-2">Статистика</div>
+          <div className="font-semibold text-gray-400 text-sm text-center p-2">Статистика</div>
           {habits.map(habit => (
             <HabitRow key={habit.id} habit={habit} year={year} month={month}
               daysInMonth={daysInMonth} isReadOnly={isReadOnly} />
           ))}
         </div>
       ) : (
-        <div className="text-center py-12 text-slate-500">
+        <div className="text-center py-12 text-gray-500">
           <p>Привычек на этот месяц еще нет.</p>
           <p>Добавьте первую, чтобы начать!</p>
         </div>
@@ -409,10 +451,10 @@ const AddHabitForm = () => {
   const { state, dispatch } = context;
   const { year, month } = state.currentDate;
   
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const selectedDate = new Date(year, month);
-  const isReadOnly = selectedDate < now && !(selectedDate.getFullYear() === now.getFullYear() && selectedDate.getMonth() === now.getMonth());
+  const today = new Date();
+  const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const firstDayOfSelectedMonth = new Date(year, month, 1);
+  const isReadOnly = firstDayOfSelectedMonth < firstDayOfCurrentMonth;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -427,9 +469,9 @@ const AddHabitForm = () => {
     <form onSubmit={handleSubmit} className="mt-8 flex gap-2">
       <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
         placeholder="Новая привычка (напр. Читать 15 минут)"
-        className="flex-grow bg-slate-700 border border-slate-600 text-slate-200 rounded-md px-4 py-2 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+        className="flex-grow bg-gray-700 border border-gray-600 text-gray-200 rounded-md px-4 py-2 focus:ring-2 focus:ring-violet-500 focus:outline-none" />
       <button type="submit" disabled={!title.trim()}
-        className="bg-sky-600 hover:bg-sky-500 text-white font-semibold px-4 py-2 rounded-md transition-colors disabled:bg-slate-600 disabled:cursor-not-allowed">
+        className="bg-violet-600 hover:bg-violet-500 text-white font-semibold px-4 py-2 rounded-md transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed">
         Добавить
       </button>
     </form>
@@ -466,16 +508,16 @@ const Header = () => {
     <Fragment>
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <button onClick={() => handleDateChange(-1)} className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg></button>
+          <button onClick={() => handleDateChange(-1)} className="p-2 rounded-md bg-gray-700 hover:bg-gray-600 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg></button>
           <span className="text-xl font-semibold w-40 text-center">{MONTH_NAMES[month]} {year}</span>
-          <button onClick={() => handleDateChange(1)} className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg></button>
+          <button onClick={() => handleDateChange(1)} className="p-2 rounded-md bg-gray-700 hover:bg-gray-600 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg></button>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative group">
-            <button className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" /></svg></button>
-            <div className="absolute right-0 mt-2 w-48 bg-slate-700 rounded-md shadow-lg z-10 hidden group-hover:block">
-              <a href="#" onClick={handleExport} className="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-600 rounded-t-md">Экспорт JSON</a>
-              <a href="#" onClick={handleImportClick} className="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-600">Импорт JSON</a>
+            <button className="p-2 rounded-md bg-gray-700 hover:bg-gray-600 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" /></svg></button>
+            <div className="absolute right-0 mt-2 w-48 bg-gray-700 rounded-md shadow-lg z-10 hidden group-hover:block">
+              <a href="#" onClick={handleExport} className="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 rounded-t-md">Экспорт JSON</a>
+              <a href="#" onClick={handleImportClick} className="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">Импорт JSON</a>
               <a href="#" onClick={() => setIsModalOpen(true)} className="block px-4 py-2 text-sm text-red-400 hover:bg-red-500 hover:text-white rounded-b-md">Очистить историю</a>
               <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
             </div>
@@ -498,10 +540,10 @@ const App = () => {
       <main className="container mx-auto p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-8">
-            <h1 className="text-4xl md:text-5xl font-bold text-sky-400">MonthHabit</h1>
-            <p className="text-slate-400 mt-2">Отслеживайте свои привычки. Месяц за месяцем.</p>
+            <h1 className="text-4xl md:text-5xl font-bold text-violet-400">Трекер привычек</h1>
+            <p className="text-gray-400 mt-2">Отслеживайте свои привычки. Месяц за месяцем.</p>
           </div>
-          <div className="bg-slate-800 rounded-xl shadow-2xl p-4 sm:p-6">
+          <div className="bg-gray-800 rounded-xl shadow-2xl p-4 sm:p-6">
             <Header />
             <div className="mt-6">
               <MonthView />
@@ -509,7 +551,7 @@ const App = () => {
             </div>
           </div>
         </div>
-        <footer className="text-center mt-12 text-slate-500 text-sm">
+        <footer className="text-center mt-12 text-gray-500 text-sm">
           <p>Создано с помощью React, Tailwind CSS и Gemini</p>
         </footer>
       </main>
